@@ -1,0 +1,10 @@
+.vs
+
+[Bb]in/
+[Oo]bj/
+
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+*.user
+*.nupkg

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>$author$</authors>
+    <owners>$author$</owners>
+    <projectUrl>https://bitbucket.org/prioninno/prion.dbhelper</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Release</releaseNotes>
+    <copyright>Copyright 2019</copyright>
+    <tags>DbHelper DotNetCore Prion Inno Innovations Database</tags>
+  </metadata>
+</package>
