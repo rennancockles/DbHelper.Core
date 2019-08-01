@@ -23,7 +23,6 @@ namespace DbHelper.Core
         private string _provider;
         private int? _timeout;
 
-
         private DatabaseHelper(string connectionString, string provider)
         {
             DbProviderFactories.RegisterFactory("MySql.Data.MySqlClient", MySqlClientFactory.Instance);
@@ -209,7 +208,7 @@ namespace DbHelper.Core
                 parameters.ToList().ForEach(p => dynParams.Add(p.ParameterName.Split('.')[0], p.Value));
 
                 return conn.Query<T, T1, T>(query,
-                    map: (a, b) => { a.GetType().GetProperty(b.GetType().Name).SetValue(a, b); return a; },
+                    map: (a, b) => DynamicMapper<T>(a, b),
                     splitOn: split,
                     param: dynParams,
                     commandTimeout: _timeout).ToList();
@@ -226,12 +225,7 @@ namespace DbHelper.Core
                 parameters.ToList().ForEach(p => dynParams.Add(p.ParameterName.Split('.')[0], p.Value));
 
                 return conn.Query<T, T1, T2, T>(query,
-                    map: (a, b, c) =>
-                    {
-                        a.GetType().GetProperty(b.GetType().Name).SetValue(a, b);
-                        a.GetType().GetProperty(c.GetType().Name).SetValue(a, c);
-                        return a;
-                    },
+                    map: (a, b, c) => DynamicMapper<T>(a, b, c),
                     splitOn: split,
                     param: dynParams,
                     commandTimeout: _timeout).ToList();
@@ -248,13 +242,7 @@ namespace DbHelper.Core
                 parameters.ToList().ForEach(p => dynParams.Add(p.ParameterName.Split('.')[0], p.Value));
 
                 return conn.Query<T, T1, T2, T3, T>(query,
-                    map: (a, b, c, d) =>
-                    {
-                        a.GetType().GetProperty(b.GetType().Name).SetValue(a, b);
-                        a.GetType().GetProperty(c.GetType().Name).SetValue(a, c);
-                        a.GetType().GetProperty(d.GetType().Name).SetValue(a, d);
-                        return a;
-                    },
+                    map: (a, b, c, d) => DynamicMapper<T>(a, b, c, d),
                     splitOn: split,
                     param: dynParams,
                     commandTimeout: _timeout).ToList();
@@ -271,14 +259,7 @@ namespace DbHelper.Core
                 parameters.ToList().ForEach(p => dynParams.Add(p.ParameterName.Split('.')[0], p.Value));
 
                 return conn.Query<T, T1, T2, T3, T4, T>(query,
-                    map: (a, b, c, d, e) =>
-                    {
-                        a.GetType().GetProperty(b.GetType().Name).SetValue(a, b);
-                        a.GetType().GetProperty(c.GetType().Name).SetValue(a, c);
-                        a.GetType().GetProperty(d.GetType().Name).SetValue(a, d);
-                        a.GetType().GetProperty(e.GetType().Name).SetValue(a, e);
-                        return a;
-                    },
+                    map: (a, b, c, d, e) => DynamicMapper<T>(a, b, c, d, e),
                     splitOn: split,
                     param: dynParams,
                     commandTimeout: _timeout).ToList();
@@ -295,19 +276,30 @@ namespace DbHelper.Core
                 parameters.ToList().ForEach(p => dynParams.Add(p.ParameterName.Split('.')[0], p.Value));
 
                 return conn.Query<T, T1, T2, T3, T4, T5, T>(query,
-                    map: (a, b, c, d, e, f) =>
-                    {
-                        a.GetType().GetProperty(b.GetType().Name).SetValue(a, b);
-                        a.GetType().GetProperty(c.GetType().Name).SetValue(a, c);
-                        a.GetType().GetProperty(d.GetType().Name).SetValue(a, d);
-                        a.GetType().GetProperty(e.GetType().Name).SetValue(a, e);
-                        a.GetType().GetProperty(f.GetType().Name).SetValue(a, f);
-                        return a;
-                    },
+                    map: (a, b, c, d, e, f) => DynamicMapper<T>(a, b, c, d, e, f),
                     splitOn: split,
                     param: dynParams,
                     commandTimeout: _timeout).ToList();
             }
+        }
+
+        private T DynamicMapper<T>(params object[] classes)
+        {
+            int tamanho = classes.Length;
+
+            for (int i = 0; i < tamanho; i++)
+            {
+                object a = classes[i];
+
+                for (int j = 0; j < tamanho; j++)
+                {
+                    object b = classes[j];
+
+                    a.GetType().GetProperty(b.GetType().Name)?.SetValue(a, b);
+                }
+            }
+
+            return (T)classes.FirstOrDefault();
         }
 
         public async Task<List<T>> GetListAsync<T>(string query, params SqlParameter[] parameters)
