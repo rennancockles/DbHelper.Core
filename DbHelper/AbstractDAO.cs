@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
 
@@ -8,19 +9,23 @@ namespace DbHelper.Core
     public abstract class AbstractDAO<T> where T : new()
     {
         protected DatabaseHelper dbHelper;
+        private readonly bool _isSqlServer;
         public QueryBuilder<T> Query { get; set; }
         public string TableName
         {
             get
             {
                 T obj = Activator.CreateInstance<T>();
-                return obj.GetType().Name;
+                return obj.GetType().Name.ToLower();
             }
         }
 
         public AbstractDAO(string connectionString, string provider = "System.Data.SqlClient")
         {
             dbHelper = DatabaseHelper.Create(connectionString, provider);
+
+            _isSqlServer = (DbProviderFactories.GetFactory(provider) == SqlClientFactory.Instance) ? true : false;
+
             Query = new QueryBuilder<T>
             {
                 orderBy = string.Empty,
@@ -28,9 +33,9 @@ namespace DbHelper.Core
                 filter = string.Empty,
                 split = string.Empty,
                 queryComplete = string.Empty,
-                fields = string.Format("[{0}].*,", TableName),
-                queryInicial = string.Format("SELECT ++ FROM [{0}] (NOLOCK) ", TableName),
-                queryCount = string.Format("SELECT COUNT(*) FROM [{0}] (NOLOCK) ", TableName),
+                fields = $"{TableName}.*,",
+                queryInicial = $"SELECT ++ FROM {TableName} {(_isSqlServer ? "(NOLOCK) " : "")}",
+                queryCount = $"SELECT COUNT(*) FROM {TableName} {(_isSqlServer ? "(NOLOCK) " : "")}",
             };
         }
 
@@ -54,10 +59,10 @@ namespace DbHelper.Core
         {
             T1 t1 = Activator.CreateInstance<T1>();
 
-            Query.fields += string.Format("[{0}].*,", t1.GetType().Name);
-            Query.split += string.Format("{0}Id,", t1.GetType().Name);
-            Query.queryInicial += string.Format("INNER JOIN [{0}] (NOLOCK) ON {1} = {2} ", t1.GetType().Name, column1, column2);
-            Query.queryCount += string.Format("INNER JOIN [{0}] (NOLOCK) ON {1} = {2} ", t1.GetType().Name, column1, column2);
+            Query.fields += $"{t1.GetType().Name}.*,";
+            Query.split += $"{t1.GetType().Name}Id,";
+            Query.queryInicial += $"INNER JOIN {t1.GetType().Name} {(_isSqlServer ? "(NOLOCK) " : "")}ON {column1} = {column2} ";
+            Query.queryCount += $"INNER JOIN {t1.GetType().Name} {(_isSqlServer ? "(NOLOCK) " : "")}ON {column1} = {column2} ";
 
             return this;
         }
@@ -66,10 +71,10 @@ namespace DbHelper.Core
         {
             T1 t1 = Activator.CreateInstance<T1>();
 
-            Query.fields += string.Format("'' as {0}Split, [{0}].*,", t1.GetType().Name);
-            Query.split += string.Format("{0}Split,", t1.GetType().Name);
-            Query.queryInicial += string.Format("LEFT JOIN [{0}] (NOLOCK) ON {1} = {2} ", t1.GetType().Name, column1, column2);
-            Query.queryCount += string.Format("INNER JOIN [{0}] (NOLOCK) ON {1} = {2} ", t1.GetType().Name, column1, column2);
+            Query.fields += $"'' as {t1.GetType().Name}Split, {t1.GetType().Name}.*,";
+            Query.split += $"{t1.GetType().Name}Split,";
+            Query.queryInicial += $"LEFT JOIN {t1.GetType().Name} {(_isSqlServer ? "(NOLOCK) " : "")}ON {column1} = {column2} ";
+            Query.queryCount += $"INNER JOIN {t1.GetType().Name} {(_isSqlServer ? "(NOLOCK) " : "")}ON {column1} = {column2} ";
 
             return this;
         }

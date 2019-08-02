@@ -138,11 +138,11 @@ namespace DbHelper.Core
 
             foreach (SqlParameter c in list)
             {
-                string newName = Regex.Replace(c.ParameterName, "[.]", "");
+                string fieldName = Regex.Replace(c.ParameterName, "[.@]", "");
+                c.ParameterName = $"@{fieldName}";
 
-                filter += string.Format("AND {0} = @{1} ", c.ParameterName, newName);
-                Create += string.Format("AND {0} = @{1} ", c.ParameterName, newName);
-                c.ParameterName = newName;
+                filter += $"AND {fieldName} = {c.ParameterName} ";
+                Create += $"AND {fieldName} = {c.ParameterName} ";
 
                 sqlParams.Add(c);
             }
