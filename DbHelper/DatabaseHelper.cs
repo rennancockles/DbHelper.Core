@@ -20,6 +20,7 @@ namespace DbHelper.Core
         DbProviderFactory _factory;
 
         private readonly string _connectionString;
+        private readonly bool _isSqlServer;
         private string _provider;
         private int? _timeout;
 
@@ -28,9 +29,11 @@ namespace DbHelper.Core
             DbProviderFactories.RegisterFactory("MySql.Data.MySqlClient", MySqlClientFactory.Instance);
             DbProviderFactories.RegisterFactory("System.Data.SqlClient", SqlClientFactory.Instance);
 
+
             _connectionString = connectionString;
             _provider = provider;
             _factory = DbProviderFactories.GetFactory(_provider);
+            _isSqlServer = (_factory == SqlClientFactory.Instance) ? true : false;
         }
 
         public static DatabaseHelper Create(string connectionString, string provider = "System.Data.SqlClient")
@@ -48,19 +51,19 @@ namespace DbHelper.Core
             _factory = DbProviderFactories.GetFactory(_provider);
         }
 
-        public int Save(string query, params SqlParameter[] parameters)
+        public int Save(string query, params DbParameter[] parameters)
         {
             return ExecuteScalar(query, parameters);
         }
         public int Save<T>(T obj)
         {
-            List<SqlParameter> list = MountCustomerParameter<T>(obj);
+            List<DbParameter> list = MountCustomerParameter<T>(obj);
 
-            string table = obj.GetType().Name;
+            string table = obj.GetType().Name.ToLower();
             string values = string.Join(",", list.Select(c => c.ParameterName));
             string columns = values.Replace("@", "");
 
-            string query = string.Format("INSERT INTO [{0}] ({1}) VALUES ({2})", table, columns, values);
+            string query = $"INSERT INTO {table} ({columns}) VALUES ({values})";
 
             int id = ExecuteScalar(query, list.ToArray());
 
@@ -70,7 +73,7 @@ namespace DbHelper.Core
         {
             return Task.Run(() =>
             {
-                List<SqlParameter> list = MountCustomerParameter<T>(obj);
+                List<DbParameter> list = MountCustomerParameter<T>(obj);
 
                 string table = obj.GetType().Name;
                 string values = string.Join(",", list.Select(c => c.ParameterName));
@@ -82,18 +85,18 @@ namespace DbHelper.Core
             });
         }
 
-        public bool Update(string query, params SqlParameter[] parameters)
+        public bool Update(string query, params DbParameter[] parameters)
         {
             return ExecuteAffectedLines(query, parameters) > 0;
         }
-        public void Update<K, T>(K id, T obj)
+        public bool Update<K, T>(K id, T obj)
         {
-            List<SqlParameter> list = MountCustomerParameter<T>(obj);
-            string table = obj.GetType().Name;
+            List<DbParameter> list = MountCustomerParameter<T>(obj);
+            string table = obj.GetType().Name.ToLower();
             string values = string.Empty;
             string key = string.Empty;
 
-            foreach (SqlParameter c in list)
+            foreach (DbParameter c in list)
             {
                 values += string.Format("{0} = {1},", c.ParameterName.Replace("@", ""), c.ParameterName);
             }
@@ -106,21 +109,21 @@ namespace DbHelper.Core
             values = values.Remove(values.Length - 1);
             list.Add(BuildParameter("id", id));
 
-            string query = string.Format("UPDATE [{0}] SET {1} WHERE {2} = @id", table, values, key);
+            string query = $"UPDATE {table} SET {values} WHERE {key} = @id";
 
-            ExecuteNonQuery(query, list.ToArray());
+            return Update(query, list.ToArray());
         }
         public void UpdateAsync<K, T>(K id, T obj)
         {
             Task.Run(() =>
             {
 
-                List<SqlParameter> list = MountCustomerParameter<T>(obj);
+                List<DbParameter> list = MountCustomerParameter<T>(obj);
                 string table = obj.GetType().Name;
                 string values = string.Empty;
                 string key = string.Empty;
 
-                foreach (SqlParameter c in list)
+                foreach (DbParameter c in list)
                 {
                     values += string.Format("{0} = {1},", c.ParameterName.Replace("@", ""), c.ParameterName);
                 }
@@ -139,48 +142,50 @@ namespace DbHelper.Core
             });
         }
 
-        public bool Delete(string query, params SqlParameter[] parameters)
+        public bool Delete(string query, params DbParameter[] parameters)
         {
             return ExecuteAffectedLines(query, parameters) > 0;
         }
-        public void Delete<T, K>(K id)
+        public bool Delete<T, K>(K id)
         {
             T obj = default;
             obj = Activator.CreateInstance<T>();
 
             foreach (PropertyInfo p in obj.GetType().GetProperties().Where(x => Attribute.IsDefined(x, typeof(Key))))
             {
-                string query = string.Format("DELETE FROM [{0}] WHERE {1} = @id", obj.GetType().Name, p.Name);
-                ExecuteNonQuery(query, BuildParameter("id", id));
+                string query = $"DELETE FROM {obj.GetType().Name.ToLower()} WHERE {p.Name} = @id";
+                return Delete(query, BuildParameter("id", id));
             }
+
+            return false;
         }
 
-        public T Get<T>(string query, params SqlParameter[] parameters)
+        public T Get<T>(string query, params DbParameter[] parameters)
         {
             return GetList<T>(query, parameters).FirstOrDefault();
         }
-        public T Get<T, T1>(string query, string split, params SqlParameter[] parameters)
+        public T Get<T, T1>(string query, string split, params DbParameter[] parameters)
         {
             return GetList<T, T1>(query, split, parameters).FirstOrDefault();
         }
-        public T Get<T, T1, T2>(string query, string split, params SqlParameter[] parameters)
+        public T Get<T, T1, T2>(string query, string split, params DbParameter[] parameters)
         {
             return GetList<T, T1, T2>(query, split, parameters).FirstOrDefault();
         }
-        public T Get<T, T1, T2, T3>(string query, string split, params SqlParameter[] parameters)
+        public T Get<T, T1, T2, T3>(string query, string split, params DbParameter[] parameters)
         {
             return GetList<T, T1, T2, T3>(query, split, parameters).FirstOrDefault();
         }
-        public T Get<T, T1, T2, T3, T4>(string query, string split, params SqlParameter[] parameters)
+        public T Get<T, T1, T2, T3, T4>(string query, string split, params DbParameter[] parameters)
         {
             return GetList<T, T1, T2, T3, T4>(query, split, parameters).FirstOrDefault();
         }
-        public T Get<T, T1, T2, T3, T4, T5>(string query, string split, params SqlParameter[] parameters)
+        public T Get<T, T1, T2, T3, T4, T5>(string query, string split, params DbParameter[] parameters)
         {
             return GetList<T, T1, T2, T3, T4, T5>(query, split, parameters).FirstOrDefault();
         }
 
-        public List<T> GetList<T>(string query, params SqlParameter[] parameters)
+        public List<T> GetList<T>(string query, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -194,7 +199,7 @@ namespace DbHelper.Core
                 else return conn.Query<T>(query, dynParams, commandTimeout: _timeout).ToList();
             }
         }
-        public List<T> GetList<T, T1>(string query, string split, params SqlParameter[] parameters)
+        public List<T> GetList<T, T1>(string query, string split, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -214,7 +219,7 @@ namespace DbHelper.Core
                     commandTimeout: _timeout).ToList();
             }
         }
-        public List<T> GetList<T, T1, T2>(string query, string split, params SqlParameter[] parameters)
+        public List<T> GetList<T, T1, T2>(string query, string split, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -231,7 +236,7 @@ namespace DbHelper.Core
                     commandTimeout: _timeout).ToList();
             }
         }
-        public List<T> GetList<T, T1, T2, T3>(string query, string split, params SqlParameter[] parameters)
+        public List<T> GetList<T, T1, T2, T3>(string query, string split, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -248,7 +253,7 @@ namespace DbHelper.Core
                     commandTimeout: _timeout).ToList();
             }
         }
-        public List<T> GetList<T, T1, T2, T3, T4>(string query, string split, params SqlParameter[] parameters)
+        public List<T> GetList<T, T1, T2, T3, T4>(string query, string split, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -265,7 +270,7 @@ namespace DbHelper.Core
                     commandTimeout: _timeout).ToList();
             }
         }
-        public List<T> GetList<T, T1, T2, T3, T4, T5>(string query, string split, params SqlParameter[] parameters)
+        public List<T> GetList<T, T1, T2, T3, T4, T5>(string query, string split, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -302,7 +307,7 @@ namespace DbHelper.Core
             return (T)classes.FirstOrDefault();
         }
 
-        public async Task<List<T>> GetListAsync<T>(string query, params SqlParameter[] parameters)
+        public async Task<List<T>> GetListAsync<T>(string query, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -319,21 +324,25 @@ namespace DbHelper.Core
             }
         }
 
-        public SqlParameter BuildParameter(string nome, object valor)
+        public DbParameter BuildParameter(string nome, object valor)
         {
-            SqlParameter parametro = new SqlParameter(GetCorrectParameterName(nome), valor);
+            DbParameter parametro = _factory.CreateParameter();
+            parametro.ParameterName = GetCorrectParameterName(nome);
+            parametro.Value = valor;
+
             return parametro;
         }
-        public SqlParameter BuildParameter(string nome, object valor, string tipo)
+        public DbParameter BuildParameter(string nome, object valor, string tipo)
         {
-            SqlParameter parametro = new SqlParameter(GetCorrectParameterName(nome), valor)
-            {
-                DbType = (DbType)Enum.Parse(typeof(DbType), tipo, true)
-            };
+            DbParameter parametro = _factory.CreateParameter();
+            parametro.ParameterName = GetCorrectParameterName(nome);
+            parametro.Value = valor;
+            parametro.DbType = (DbType)Enum.Parse(typeof(DbType), tipo, true);
+            
             return parametro;
         }
 
-        public int ExecuteAffectedLines(string query, params SqlParameter[] parameters)
+        public int ExecuteAffectedLines(string query, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -348,7 +357,7 @@ namespace DbHelper.Core
                 }
             }
         }
-        public void ExecuteNonQuery(string query, params SqlParameter[] parameters)
+        public void ExecuteNonQuery(string query, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -363,7 +372,7 @@ namespace DbHelper.Core
                 }
             }
         }
-        public async Task ExecuteNonQueryAsync(string query, params SqlParameter[] parameters)
+        public async Task ExecuteNonQueryAsync(string query, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -379,9 +388,10 @@ namespace DbHelper.Core
             }
         }
 
-        public int ExecuteScalar(string query, params SqlParameter[] parameters)
+        public int ExecuteScalar(string query, params DbParameter[] parameters)
         {
             int id = 0;
+            string lastId = _isSqlServer ? "CAST(scope_identity() AS int)" : "LAST_INSERT_ID()";
 
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -392,9 +402,9 @@ namespace DbHelper.Core
                     {
                         conn.Open();
                         command.CommandTimeout = _timeout ?? 30;
-                        command.CommandText = query + ";SELECT CAST(scope_identity() AS int);";
+                        command.CommandText = $"{query};SELECT {lastId};";
                         command.Parameters.AddRange(parameters);
-                        id = (int)command.ExecuteScalar();
+                        id = Convert.ToInt32(command.ExecuteScalar());
                     }
                     catch (DbException ex)
                     {
@@ -406,7 +416,7 @@ namespace DbHelper.Core
             return (int)id;
         }
 
-        public DbDataReader ExecuteDataReader(string query, params SqlParameter[] parameters)
+        public DbDataReader ExecuteDataReader(string query, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -429,7 +439,7 @@ namespace DbHelper.Core
             }
         }
 
-        public DataTable ExecuteDataTable(string query, params SqlParameter[] parameters)
+        public DataTable ExecuteDataTable(string query, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -455,9 +465,9 @@ namespace DbHelper.Core
             }
         }
 
-        private List<SqlParameter> MountCustomerParameter<T>(T obj)
+        private List<DbParameter> MountCustomerParameter<T>(T obj)
         {
-            List<SqlParameter> sqlparams = new List<SqlParameter>();
+            List<DbParameter> sqlparams = new List<DbParameter>();
 
             foreach (PropertyInfo prop in obj.GetType().GetProperties())
             {
