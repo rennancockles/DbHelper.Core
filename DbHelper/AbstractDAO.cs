@@ -16,7 +16,7 @@ namespace DbHelper.Core
             get
             {
                 T obj = Activator.CreateInstance<T>();
-                return obj.GetType().Name.ToLower();
+                return GetCorrectTableName(obj);
             }
         }
 
@@ -244,6 +244,21 @@ namespace DbHelper.Core
             Query.Filterable.Data = dbHelper.GetList<T, T1, T2, T3, T4, T5>(Query.queryComplete, Query.split, Query.SQLParams);
 
             return Query.Filterable;
+        }
+
+        private string GetCorrectTableName(object obj)
+        {
+            TableName tableName = (TableName)obj.GetType().GetCustomAttributes(typeof(TableName), false).FirstOrDefault();
+
+            if (tableName != null && !string.IsNullOrEmpty(tableName.Name))
+            {
+                return tableName.Name;
+            }
+            else
+            {
+                return obj.GetType().Name.ToLower();
+            }
+
         }
     }
 }

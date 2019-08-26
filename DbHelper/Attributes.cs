@@ -34,4 +34,34 @@ namespace DbHelper.Core
             public string Name;
         }
     }
+
+    public class TableName : Attribute
+    {
+        public string Name;
+
+        public TableName(string name)
+        {
+            Name = name;
+        }
+
+        public class Object : Attribute
+        {
+            public string Name;
+        }
+    }
+
+    public class TablePrefix : Attribute
+    {
+        public string Prefix;
+
+        public TablePrefix(string prefix)
+        {
+            Prefix = prefix;
+        }
+
+        public class Object : Attribute
+        {
+            public string Prefix;
+        }
+    }
 }

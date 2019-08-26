@@ -59,7 +59,7 @@ namespace DbHelper.Core
         {
             List<DbParameter> list = MountCustomerParameter<T>(obj);
 
-            string table = obj.GetType().Name.ToLower();
+            string table = GetCorrectTableName(obj);
             string values = string.Join(",", list.Select(c => c.ParameterName));
             string columns = values.Replace("@", "");
 
@@ -75,7 +75,7 @@ namespace DbHelper.Core
             {
                 List<DbParameter> list = MountCustomerParameter<T>(obj);
 
-                string table = obj.GetType().Name;
+                string table = GetCorrectTableName(obj);
                 string values = string.Join(",", list.Select(c => c.ParameterName));
                 string columns = values.Replace("@", "");
 
@@ -92,7 +92,7 @@ namespace DbHelper.Core
         public bool Update<K, T>(K id, T obj)
         {
             List<DbParameter> list = MountCustomerParameter<T>(obj);
-            string table = obj.GetType().Name.ToLower();
+            string table = GetCorrectTableName(obj);
             string values = string.Empty;
             string key = string.Empty;
 
@@ -119,7 +119,7 @@ namespace DbHelper.Core
             {
 
                 List<DbParameter> list = MountCustomerParameter<T>(obj);
-                string table = obj.GetType().Name;
+                string table = GetCorrectTableName(obj);
                 string values = string.Empty;
                 string key = string.Empty;
 
@@ -153,7 +153,7 @@ namespace DbHelper.Core
 
             foreach (PropertyInfo p in obj.GetType().GetProperties().Where(x => Attribute.IsDefined(x, typeof(Key))))
             {
-                string query = $"DELETE FROM {obj.GetType().Name.ToLower()} WHERE {p.Name} = @id";
+                string query = $"DELETE FROM {GetCorrectTableName(obj)} WHERE {p.Name} = @id";
                 return Delete(query, BuildParameter("id", id));
             }
 
@@ -498,6 +498,20 @@ namespace DbHelper.Core
             }
 
             return parameterName;
+        }
+        private string GetCorrectTableName(object obj)
+        {
+            TableName tableName = (TableName)obj.GetType().GetCustomAttributes(typeof(TableName), false).FirstOrDefault();
+
+            if (tableName != null && !string.IsNullOrEmpty(tableName.Name))
+            {
+                return tableName.Name;
+            }
+            else
+            {
+                return obj.GetType().Name.ToLower();
+            }
+
         }
 
         private object GetPropValue(object src, string propName)
