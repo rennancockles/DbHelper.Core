@@ -347,7 +347,12 @@ namespace DbHelper.Core
                     commandTimeout: _timeout).ToList();
             }
         }
-        public List<T> GetList<T>(string query, object[] classes, string split, params DbParameter[] parameters)
+
+        public List<T> GetList<T>(string query, object[] classes, List<DbParameter> parameters)
+        {
+            return GetList<T>(query, classes, parameters.ToArray());
+        }
+        public List<T> GetList<T>(string query, object[] classes, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
             {
@@ -355,30 +360,39 @@ namespace DbHelper.Core
                 conn.Open();
 
                 object[] objs = new object[classes.Length + 1];
-                Type[] typeArray = new Type[classes.Length + 1];
 
-                typeArray[0] = typeof(T);
+                List<Type> typeList = classes.Select(cls => cls.GetType()).ToList();
+                typeList.Insert(0, typeof(T));
 
-                for (int i = 1; i < classes.Length + 1; i++)
-                    typeArray[i] = classes[i - 1].GetType();
+                string splitOn = GetSplitOn(typeList);
 
                 DynamicParameters dynParams = new DynamicParameters(new { });
                 parameters.ToList().ForEach(p => dynParams.Add(p.ParameterName.Split('.')[0], p.Value));
 
                 return conn.Query(query,
-                    typeArray,
+                    typeList.ToArray(),
                     obj =>
                     {
                         objs[0] = (T)Convert.ChangeType(obj[0], typeof(T));
                         for (int i = 1; i < classes.Length + 1; i++)
-                            objs[i] = Convert.ChangeType(obj[i], typeArray[i]);
+                            objs[i] = Convert.ChangeType(obj[i], typeList[i]);
 
                         return DynamicMapper<T>(objs);
                     },
-                    splitOn: split,
+                    splitOn: splitOn,
                     param: dynParams,
                     commandTimeout: _timeout).ToList();
             }
+        }
+
+        private string GetSplitOn(List<Type> types)
+        {
+            return string.Join(",", types.Select(t => GetKeyProp(t)).ToArray());
+        }
+
+        private string GetKeyProp(Type tipo)
+        {
+            return tipo.GetProperties().FirstOrDefault(x => Attribute.IsDefined(x, typeof(Key)))?.Name ?? "";
         }
 
         private T DynamicMapper<T>(params object[] classes)
@@ -394,8 +408,6 @@ namespace DbHelper.Core
                 {
                     object b = classes[j];
                     if (b is null) continue;
-
-                    //a.GetType().GetProperty(b.GetType().Name)?.SetValue(a, b);
 
                     PropertyInfo propInfo = a
                         .GetType()
