@@ -347,6 +347,39 @@ namespace DbHelper.Core
                     commandTimeout: _timeout).ToList();
             }
         }
+        public List<T> GetList<T>(string query, object[] classes, string split, params DbParameter[] parameters)
+        {
+            using (DbConnection conn = _factory.CreateConnection())
+            {
+                conn.ConnectionString = _connectionString;
+                conn.Open();
+
+                object[] objs = new object[classes.Length + 1];
+                Type[] typeArray = new Type[classes.Length + 1];
+
+                typeArray[0] = typeof(T);
+
+                for (int i = 1; i < classes.Length + 1; i++)
+                    typeArray[i] = classes[i - 1].GetType();
+
+                DynamicParameters dynParams = new DynamicParameters(new { });
+                parameters.ToList().ForEach(p => dynParams.Add(p.ParameterName.Split('.')[0], p.Value));
+
+                return conn.Query(query,
+                    typeArray,
+                    obj =>
+                    {
+                        objs[0] = (T)Convert.ChangeType(obj[0], typeof(T));
+                        for (int i = 1; i < classes.Length + 1; i++)
+                            objs[i] = Convert.ChangeType(obj[i], typeArray[i]);
+
+                        return DynamicMapper<T>(objs);
+                    },
+                    splitOn: split,
+                    param: dynParams,
+                    commandTimeout: _timeout).ToList();
+            }
+        }
 
         private T DynamicMapper<T>(params object[] classes)
         {
@@ -362,7 +395,14 @@ namespace DbHelper.Core
                     object b = classes[j];
                     if (b is null) continue;
 
-                    a.GetType().GetProperty(b.GetType().Name)?.SetValue(a, b);
+                    //a.GetType().GetProperty(b.GetType().Name)?.SetValue(a, b);
+
+                    PropertyInfo propInfo = a
+                        .GetType()
+                        .GetProperties()
+                        .FirstOrDefault(p => p.PropertyType.Name == b.GetType().Name && p.GetValue(a) == null);
+
+                    propInfo?.SetValue(a, b);
                 }
             }
 
