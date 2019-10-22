@@ -221,6 +221,15 @@ namespace DbHelper.Core
             return GetList<T, T1, T2, T3, T4, T5>(query, split, parameters).FirstOrDefault();
         }
 
+        public T Get<T>(string query, object[] classes, List<DbParameter> parameters)
+        {
+            return GetList<T>(query, classes, parameters.ToArray()).FirstOrDefault();
+        }
+        public T Get<T>(string query, object[] classes, params DbParameter[] parameters)
+        {
+            return GetList<T>(query, classes, parameters).FirstOrDefault();
+        }
+
         public List<T> GetList<T>(string query, List<DbParameter> parameters)
         {
             return GetList<T>(query, parameters.ToArray());
@@ -412,7 +421,7 @@ namespace DbHelper.Core
                     PropertyInfo propInfo = a
                         .GetType()
                         .GetProperties()
-                        .FirstOrDefault(p => p.PropertyType.Name == b.GetType().Name && p.GetValue(a) == null);
+                        .FirstOrDefault(p => p.PropertyType.Name == b.GetType().Name && p.CanRead && p.GetValue(a) == null);
 
                     propInfo?.SetValue(a, b);
                 }
