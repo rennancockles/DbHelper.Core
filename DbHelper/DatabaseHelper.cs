@@ -603,6 +603,10 @@ namespace DbHelper.Core
                     {
                         sqlparams.Add(BuildParameter(prop.Name, GetPropValue(obj, prop.Name)));
                     }
+                    else if (prop.PropertyType.BaseType.Name == "Enum")
+                    {
+                        sqlparams.Add(BuildParameter(prop.Name, GetPropValue(obj, prop.Name), "Int32"));
+                    }
                     else
                     {
                         sqlparams.Add(BuildParameter(prop.Name, GetPropValue(obj, prop.Name), prop.PropertyType.Name));
