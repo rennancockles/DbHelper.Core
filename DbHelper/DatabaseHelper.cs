@@ -83,7 +83,7 @@ namespace DbHelper.Core
                 string values = string.Join(",", list.Select(c => c.ParameterName));
                 string columns = values.Replace("@", "");
 
-                string query = string.Format("INSERT INTO {0} ({1}) VALUES ({2})", table, columns, values);
+                string query = $"INSERT INTO {table} ({columns}) VALUES ({values})";
 
                 return ExecuteScalar(query, list.ToArray());
             });
@@ -106,7 +106,7 @@ namespace DbHelper.Core
 
             foreach (DbParameter c in list)
             {
-                values += string.Format("{0} = {1},", c.ParameterName.Replace("@", ""), c.ParameterName);
+                values += $"{c.ParameterName.Replace("@", "")} = {c.ParameterName},";
             }
 
             foreach (PropertyInfo p in obj.GetType().GetProperties().Where(x => Attribute.IsDefined(x, typeof(Key))))
@@ -133,7 +133,7 @@ namespace DbHelper.Core
 
                 foreach (DbParameter c in list)
                 {
-                    values += string.Format("{0} = {1},", c.ParameterName.Replace("@", ""), c.ParameterName);
+                    values += $"{c.ParameterName.Replace("@", "")} = {c.ParameterName},";
                 }
 
                 foreach (PropertyInfo p in obj.GetType().GetProperties().Where(x => Attribute.IsDefined(x, typeof(Key))))
@@ -144,7 +144,7 @@ namespace DbHelper.Core
                 values = values.Remove(values.Length - 1);
                 list.Add(BuildParameter("id", id));
 
-                string query = string.Format("UPDATE {0} SET {1} WHERE {2} = @id", table, values, key);
+                string query = $"UPDATE {table} SET {values} WHERE {key} = @id";
 
                 ExecuteNonQuery(query, list.ToArray());
             });
@@ -176,45 +176,46 @@ namespace DbHelper.Core
         {
             return Get<T>(query, parameters.ToArray());
         }
-        public T Get<T>(string query, params DbParameter[] parameters)
-        {
-            return GetList<T>(query, parameters).FirstOrDefault();
-        }
         public T Get<T, T1>(string query, string split, List<DbParameter> parameters)
         {
             return Get<T, T1>(query, split, parameters.ToArray());
-        }
-        public T Get<T, T1>(string query, string split, params DbParameter[] parameters)
-        {
-            return GetList<T, T1>(query, split, parameters).FirstOrDefault();
         }
         public T Get<T, T1, T2>(string query, string split, List<DbParameter> parameters)
         {
             return Get<T, T1, T2>(query, split, parameters.ToArray());
         }
-        public T Get<T, T1, T2>(string query, string split, params DbParameter[] parameters)
-        {
-            return GetList<T, T1, T2>(query, split, parameters).FirstOrDefault();
-        }
         public T Get<T, T1, T2, T3>(string query, string split, List<DbParameter> parameters)
         {
             return Get<T, T1, T2, T3>(query, split, parameters.ToArray());
-        }
-        public T Get<T, T1, T2, T3>(string query, string split, params DbParameter[] parameters)
-        {
-            return GetList<T, T1, T2, T3>(query, split, parameters).FirstOrDefault();
         }
         public T Get<T, T1, T2, T3, T4>(string query, string split, List<DbParameter> parameters)
         {
             return Get<T, T1, T2, T3, T4>(query, split, parameters.ToArray());
         }
-        public T Get<T, T1, T2, T3, T4>(string query, string split, params DbParameter[] parameters)
-        {
-            return GetList<T, T1, T2, T3, T4>(query, split, parameters).FirstOrDefault();
-        }
         public T Get<T, T1, T2, T3, T4, T5>(string query, string split, List<DbParameter> parameters)
         {
             return Get<T, T1, T2, T3, T4, T5>(query, split, parameters.ToArray());
+        }
+        
+        public T Get<T>(string query, params DbParameter[] parameters)
+        {
+            return GetList<T>(query, parameters).FirstOrDefault();
+        }
+        public T Get<T, T1>(string query, string split, params DbParameter[] parameters)
+        {
+            return GetList<T, T1>(query, split, parameters).FirstOrDefault();
+        }
+        public T Get<T, T1, T2>(string query, string split, params DbParameter[] parameters)
+        {
+            return GetList<T, T1, T2>(query, split, parameters).FirstOrDefault();
+        }
+        public T Get<T, T1, T2, T3>(string query, string split, params DbParameter[] parameters)
+        {
+            return GetList<T, T1, T2, T3>(query, split, parameters).FirstOrDefault();
+        }
+        public T Get<T, T1, T2, T3, T4>(string query, string split, params DbParameter[] parameters)
+        {
+            return GetList<T, T1, T2, T3, T4>(query, split, parameters).FirstOrDefault();
         }
         public T Get<T, T1, T2, T3, T4, T5>(string query, string split, params DbParameter[] parameters)
         {
@@ -234,6 +235,27 @@ namespace DbHelper.Core
         {
             return GetList<T>(query, parameters.ToArray());
         }
+        public List<T> GetList<T, T1>(string query, string split, List<DbParameter> parameters)
+        {
+            return GetList<T, T1>(query, split, parameters.ToArray());
+        }
+        public List<T> GetList<T, T1, T2>(string query, string split, List<DbParameter> parameters)
+        {
+            return GetList<T, T1, T2>(query, split, parameters.ToArray());
+        }
+        public List<T> GetList<T, T1, T2, T3>(string query, string split, List<DbParameter> parameters)
+        {
+            return GetList<T, T1, T2, T3>(query, split, parameters.ToArray());
+        }
+        public List<T> GetList<T, T1, T2, T3, T4>(string query, string split, List<DbParameter> parameters)
+        {
+            return GetList<T, T1, T2, T3, T4>(query, split, parameters.ToArray());
+        }
+        public List<T> GetList<T, T1, T2, T3, T4, T5>(string query, string split, List<DbParameter> parameters)
+        {
+            return GetList<T, T1, T2, T3, T4, T5>(query, split, parameters.ToArray());
+        }
+
         public List<T> GetList<T>(string query, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
@@ -247,10 +269,6 @@ namespace DbHelper.Core
                 if (parameters.Length == 0) return conn.Query<T>(query).ToList();
                 else return conn.Query<T>(query, dynParams, commandTimeout: _timeout).ToList();
             }
-        }
-        public List<T> GetList<T, T1>(string query, string split, List<DbParameter> parameters)
-        {
-            return GetList<T, T1>(query, split, parameters.ToArray());
         }
         public List<T> GetList<T, T1>(string query, string split, params DbParameter[] parameters)
         {
@@ -272,10 +290,6 @@ namespace DbHelper.Core
                     commandTimeout: _timeout).ToList();
             }
         }
-        public List<T> GetList<T, T1, T2>(string query, string split, List<DbParameter> parameters)
-        {
-            return GetList<T, T1, T2>(query, split, parameters.ToArray());
-        }
         public List<T> GetList<T, T1, T2>(string query, string split, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
@@ -292,10 +306,6 @@ namespace DbHelper.Core
                     param: dynParams,
                     commandTimeout: _timeout).ToList();
             }
-        }
-        public List<T> GetList<T, T1, T2, T3>(string query, string split, List<DbParameter> parameters)
-        {
-            return GetList<T, T1, T2, T3>(query, split, parameters.ToArray());
         }
         public List<T> GetList<T, T1, T2, T3>(string query, string split, params DbParameter[] parameters)
         {
@@ -314,10 +324,6 @@ namespace DbHelper.Core
                     commandTimeout: _timeout).ToList();
             }
         }
-        public List<T> GetList<T, T1, T2, T3, T4>(string query, string split, List<DbParameter> parameters)
-        {
-            return GetList<T, T1, T2, T3, T4>(query, split, parameters.ToArray());
-        }
         public List<T> GetList<T, T1, T2, T3, T4>(string query, string split, params DbParameter[] parameters)
         {
             using (DbConnection conn = _factory.CreateConnection())
@@ -334,10 +340,6 @@ namespace DbHelper.Core
                     param: dynParams,
                     commandTimeout: _timeout).ToList();
             }
-        }
-        public List<T> GetList<T, T1, T2, T3, T4, T5>(string query, string split, List<DbParameter> parameters)
-        {
-            return GetList<T, T1, T2, T3, T4, T5>(query, split, parameters.ToArray());
         }
         public List<T> GetList<T, T1, T2, T3, T4, T5>(string query, string split, params DbParameter[] parameters)
         {
@@ -597,19 +599,19 @@ namespace DbHelper.Core
                 object[] key = prop.GetCustomAttributes(typeof(Key), true);
                 object[] notMapped = prop.GetCustomAttributes(typeof(NotMapped), true);
 
-                if (key.Length == 0 && notMapped.Length == 0 && GetPropValue(obj, prop.Name) != null)
+                if (key.Length == 0 && notMapped.Length == 0 && prop.GetValue(obj) != null)
                 {
                     if (prop.PropertyType.Name.Contains("Nullable"))
                     {
-                        sqlparams.Add(BuildParameter(prop.Name, GetPropValue(obj, prop.Name)));
+                        sqlparams.Add(BuildParameter(prop.Name, prop.GetValue(obj)));
                     }
                     else if (prop.PropertyType.BaseType.Name == "Enum")
                     {
-                        sqlparams.Add(BuildParameter(prop.Name, GetPropValue(obj, prop.Name), "Int32"));
+                        sqlparams.Add(BuildParameter(prop.Name, prop.GetValue(obj), "Int32"));
                     }
                     else
                     {
-                        sqlparams.Add(BuildParameter(prop.Name, GetPropValue(obj, prop.Name), prop.PropertyType.Name));
+                        sqlparams.Add(BuildParameter(prop.Name, prop.GetValue(obj), prop.PropertyType.Name));
                     }
                 }
             }
@@ -639,11 +641,6 @@ namespace DbHelper.Core
                 return obj.GetType().Name.ToLower();
             }
 
-        }
-
-        private object GetPropValue(object src, string propName)
-        {
-            return src.GetType().GetProperty(propName).GetValue(src, null);
         }
 
         public void Dispose()
