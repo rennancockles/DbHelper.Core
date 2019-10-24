@@ -9,6 +9,7 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace DbHelper.Core
@@ -70,6 +71,21 @@ namespace DbHelper.Core
             string query = $"INSERT INTO {table} ({columns}) VALUES ({values})";
 
             int id = ExecuteScalar(query, list.ToArray());
+
+            return id;
+        }
+        public int Save<T>(List<T> objs)
+        {
+            T obj = objs[0];
+            List<List<DbParameter>> list = MountCustomerParameter(objs);
+
+            string table = GetCorrectTableName(obj);
+            string values = string.Join("),(", list.Select(l => string.Join(",", l.Select(c => c.ParameterName))));
+            string columns = string.Join(",", list.First().Select(p => Regex.Replace(p.ParameterName.Replace("@", ""), @"\d+$", "")));
+
+            string query = $"INSERT INTO {table} ({columns}) VALUES ({values})";
+
+            int id = ExecuteScalar(query, list.SelectMany(x => x).ToArray());
 
             return id;
         }
@@ -617,6 +633,50 @@ namespace DbHelper.Core
             }
 
             return sqlparams;
+        }
+        private List<List<DbParameter>> MountCustomerParameter<T>(List<T> objs)
+        {
+            List<List<DbParameter>> result = new List<List<DbParameter>>();
+            List<DbParameter> sqlparams;
+            int i = 0;
+
+            foreach (T obj in objs)
+            {
+                sqlparams = new List<DbParameter>();
+                
+                PropertyInfo[] props = obj
+                    .GetType()
+                    .GetProperties()
+                    .Where(prop => 
+                        prop.GetCustomAttributes().All(attr => !new[] { typeof(Key), typeof(NotMapped) }.Contains(attr.GetType()))
+                        && prop.GetValue(obj) != null
+                    )
+                    .ToArray();
+
+                foreach (PropertyInfo prop in props)
+                {
+                    string paramName = $"{prop.Name}{i}";
+                    object paramValue = prop.GetValue(obj);
+
+                    if (prop.PropertyType.Name.Contains("Nullable"))
+                    {
+                        sqlparams.Add(BuildParameter(paramName, paramValue));
+                    }
+                    else if (prop.PropertyType.BaseType.Name == "Enum")
+                    {
+                        sqlparams.Add(BuildParameter(paramName, paramValue, "Int32"));
+                    }
+                    else
+                    {
+                        sqlparams.Add(BuildParameter(paramName, paramValue, prop.PropertyType.Name));
+                    }
+                }
+
+                result.Add(sqlparams);
+                i++;
+            }
+
+            return result;
         }
 
         private string GetCorrectParameterName(string parameterName)
