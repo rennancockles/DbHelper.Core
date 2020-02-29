@@ -51,6 +51,11 @@ namespace DbHelper.Core
 
             int id = ExecuteScalar(query, list.SelectMany(x => x).ToArray());
 
+            if (id > 0 && obj.GetType().BaseType == typeof(DBModel))
+            {
+                objs.ForEach(o => (o as DBModel).GetDBChanges());
+            }
+
             return id;
         }
 

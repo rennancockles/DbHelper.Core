@@ -52,23 +52,13 @@ namespace DbHelper.Core
 
             foreach (PropertyInfo prop in obj.GetType().GetProperties())
             {
-                object[] key = prop.GetCustomAttributes(typeof(Key), true);
-                object[] notMapped = prop.GetCustomAttributes(typeof(NotMapped), true);
+                bool isNotKey = prop.GetCustomAttributes(typeof(Key), true).Length == 0;
+                bool isMapped = prop.GetCustomAttributes(typeof(NotMapped), true).Length == 0;
 
-                if (key.Length == 0 && notMapped.Length == 0 && prop.GetValue(obj) != null)
+                if (isNotKey && isMapped)
                 {
-                    if (prop.PropertyType.Name.Contains("Nullable"))
-                    {
-                        sqlparams.Add(BuildParameter(prop.Name, prop.GetValue(obj)));
-                    }
-                    else if (prop.PropertyType.BaseType.Name == "Enum")
-                    {
-                        sqlparams.Add(BuildParameter(prop.Name, prop.GetValue(obj), "Int32"));
-                    }
-                    else
-                    {
-                        sqlparams.Add(BuildParameter(prop.Name, prop.GetValue(obj), prop.PropertyType.Name));
-                    }
+                    string propTypeName = GetPropTypeName(prop);
+                    sqlparams.Add(BuildParameter(prop.Name, prop.GetValue(obj), propTypeName));
                 }
             }
 
@@ -87,29 +77,16 @@ namespace DbHelper.Core
                 PropertyInfo[] props = obj
                     .GetType()
                     .GetProperties()
-                    .Where(prop =>
-                        prop.GetCustomAttributes().All(attr => !new[] { typeof(Key), typeof(NotMapped) }.Contains(attr.GetType()))
-                        && prop.GetValue(obj) != null
-                    )
+                    .Where(prop => prop.GetCustomAttributes().All(attr => !new[] { typeof(Key), typeof(NotMapped) }.Contains(attr.GetType())))
                     .ToArray();
 
                 foreach (PropertyInfo prop in props)
                 {
                     string paramName = $"{prop.Name}{i}";
                     object paramValue = prop.GetValue(obj);
+                    string propTypeName = GetPropTypeName(prop);
 
-                    if (prop.PropertyType.Name.Contains("Nullable"))
-                    {
-                        sqlparams.Add(BuildParameter(paramName, paramValue));
-                    }
-                    else if (prop.PropertyType.BaseType.Name == "Enum")
-                    {
-                        sqlparams.Add(BuildParameter(paramName, paramValue, "Int32"));
-                    }
-                    else
-                    {
-                        sqlparams.Add(BuildParameter(paramName, paramValue, prop.PropertyType.Name));
-                    }
+                    sqlparams.Add(BuildParameter(paramName, paramValue, propTypeName));
                 }
 
                 result.Add(sqlparams);
@@ -176,6 +153,13 @@ namespace DbHelper.Core
         private string GetKeyProp(Type tipo)
         {
             return tipo.GetProperties().FirstOrDefault(x => Attribute.IsDefined(x, typeof(Key)))?.Name ?? "";
+        }
+
+        private string GetPropTypeName(PropertyInfo prop)
+        {
+            if (prop.PropertyType.BaseType.Name == "Enum") return "Int32";
+            else if (prop.PropertyType.Name.Contains("Nullable")) return prop.PropertyType.GenericTypeArguments.Select(arg => arg.Name).FirstOrDefault();
+            else return prop.PropertyType.Name;
         }
 
         public void SetTimeout(int timeout)
